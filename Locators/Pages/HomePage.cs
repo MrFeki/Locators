@@ -52,13 +52,13 @@ namespace Locators.Pages
             logger.LogInformation("Page bottom reached.");
         }
 
-        public IWebElement FindCodeOfConductLink(string expectedFileName)
+        ppublic(IWebElement element, string fileName) FindCodeOfConductLink(string expectedFileName)
         {
             logger.LogInformation("Scrolling up until Code of Ethical Conduct link is visible.");
 
             var downloadWait = new WebDriverWait(driver, TimeSpan.FromSeconds(30));
 
-            By linkLocator = By.LinkText("Code of Ethical Conduct (PDF)");
+            By linkLocator = By.XPath("//a[normalize-space()='Code of Ethical Conduct (PDF)']");
 
             IWebElement? codeLink = downloadWait.Until(d =>
             {
@@ -99,6 +99,7 @@ namespace Locators.Pages
                     ((IJavaScriptExecutor)d).ExecuteScript("window.scrollBy(0, -50);");
                     return null;
                 }
+
                 catch (StaleElementReferenceException)
                 {
                     return null;
@@ -109,11 +110,26 @@ namespace Locators.Pages
 
             string href = codeLink!.GetAttribute("href") ?? string.Empty;
 
-            Assert.That(href, Does.Contain(expectedFileName), $"Code of Ethical Conduct link does not point to '{expectedFileName}'.");
+            string actualFileName = string.Empty;
+            try
+            {
+                if (Uri.TryCreate(href, UriKind.Absolute, out var uri))
+                {
+                    actualFileName = Path.GetFileName(uri.LocalPath);
+                }
+                else
+                {
+                    actualFileName = Path.GetFileName(href);
+                }
+            }
+            catch
+            {
+                actualFileName = string.Empty;
+            }
 
-            logger.LogInformation("Code of Ethical Conduct link is visible. Href: {Href}", href);
+            logger.LogInformation("Code of Ethical Conduct link is visible. Href: {Href}, Filename: {FileName}", href, actualFileName);
 
-            return codeLink;
+            return (codeLink, actualFileName);
         }
 
         public void ClickDownloadLink(IWebElement codeLink)
