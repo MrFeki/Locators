@@ -52,7 +52,7 @@ namespace Locators.Pages
             logger.LogInformation("Page bottom reached.");
         }
 
-        ppublic(IWebElement element, string fileName) FindCodeOfConductLink(string expectedFileName)
+        public (IWebElement element, string fileName) FindCodeOfConductLink(string expectedFileName)
         {
             logger.LogInformation("Scrolling up until Code of Ethical Conduct link is visible.");
 

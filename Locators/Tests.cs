@@ -36,15 +36,17 @@ public sealed class Tests : BaseTest
     [TestCase("Code-Of-Conduct_01_26.pdf")]
     public void ValidateFileDownload(string expectedFileName)
     {
-        var expectedFilePath = Path.Combine(DownloadDirectory, expectedFileName);
+        var (codeLink, actualFileName) = Home.FindCodeOfConductLink(expectedFileName);
+        var expectedFilePath = Path.Combine(DownloadDirectory, actualFileName);
         if (File.Exists(expectedFilePath)) File.Delete(expectedFilePath);
-        Home.ScrollToFooter(); Home.ClickDownloadLink(Home.FindCodeOfConductLink(expectedFileName));
+        Home.ScrollToFooter();
+        Home.ClickDownloadLink(codeLink);
         Assert.Multiple(() =>
         {
             Assert.That(Home.WaitForFileDownload(expectedFilePath), Is.True, "Download did not complete.");
             Assert.That(new FileInfo(expectedFilePath).Length, Is.GreaterThan(0), "Downloaded file is empty.");
         });
-        Logger.LogInformation("Downloaded {File} to {Path}", expectedFileName, expectedFilePath);
+        Logger.LogInformation("Downloaded {File} to {Path}", actualFileName, expectedFilePath);
     }
 
     [Test]

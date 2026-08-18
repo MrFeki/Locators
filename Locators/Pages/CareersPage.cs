@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
@@ -48,7 +49,7 @@ namespace Locators.Pages
             MoveToElement(countryInput);
             countryInput.Click();
             countryInput.Clear();
-            countryInput.SendKeys(country + Keys.Enter);          
+            countryInput.SendKeys(country + Keys.Enter);
 
             logger.LogInformation("Country {Country} selected.", country);
         }
@@ -102,13 +103,40 @@ namespace Locators.Pages
 
             IWebElement? oldFirstJob = driver.FindElements(jobSelector).FirstOrDefault();
 
-            var submitButton = WaitForVisibleAndEnabled(By.Name("submit_search_box_button"));
+            const int maxAttempts = 5;
+            var clicked = false;
 
-            ScrollToElement(submitButton);
-            MoveToElement(submitButton);
-            submitButton.Click();
+            for (int attempt = 1; attempt <= maxAttempts && !clicked; attempt++)
+            {
+                try
+                {
+                    var submitButton = WaitForVisibleAndEnabled(By.Name("submit_search_box_button"));
 
-            logger.LogInformation("Search button clicked.");
+                    ScrollToElement(submitButton);
+                    MoveToElement(submitButton);
+                    submitButton.Click();
+
+                    clicked = true;
+                    logger.LogInformation("Search button clicked (attempt {Attempt}).", attempt);
+                }
+                catch (StaleElementReferenceException)
+                {
+                    logger.LogWarning("Search button was stale on attempt {Attempt}, retrying.", attempt);
+                    Thread.Sleep(250);
+                }
+                catch (ElementClickInterceptedException)
+                {
+                    logger.LogWarning("Click intercepted on attempt {Attempt}, attempting to handle cookie banner and retry.", attempt);
+                    HandleCookieBanner();
+                    Thread.Sleep(250);
+                }
+            }
+
+            if (!clicked)
+            {
+
+                throw new StaleElementReferenceException("Failed to click Search button because it kept becoming stale.");
+            }
 
             if (oldFirstJob is not null)
             {
@@ -223,7 +251,21 @@ namespace Locators.Pages
                     string text = details.Text;
                     if (string.IsNullOrWhiteSpace(text)) return null;
                     logger.LogInformation("Checking expanded job details. Current text length: {Length}", text.Length);
-                    return text.Contains(programmingLanguage, StringComparison.OrdinalIgnoreCase) ? text : null;
+
+                    bool contains = text.Contains(programmingLanguage, StringComparison.OrdinalIgnoreCase);
+
+                    if (!contains && programmingLanguage.StartsWith('.'))
+                    {
+                        var withoutDot = programmingLanguage.TrimStart('.');
+                        contains = text.Contains(withoutDot, StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    if (!contains && string.Equals(programmingLanguage, ".NET", StringComparison.OrdinalIgnoreCase))
+                    {
+                        contains = text.IndexOf("dotnet", StringComparison.OrdinalIgnoreCase) >= 0;
+                    }
+
+                    return contains ? text : null;
                 }
                 catch (StaleElementReferenceException)
                 {
