@@ -48,8 +48,7 @@ namespace Locators.Pages
             MoveToElement(countryInput);
             countryInput.Click();
             countryInput.Clear();
-            countryInput.SendKeys(country);
-            countryInput.SendKeys(Keys.Enter);
+            countryInput.SendKeys(country + Keys.Enter);
 
             logger.LogInformation("Country {Country} selected.", country);
         }

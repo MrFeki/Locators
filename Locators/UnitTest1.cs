@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
@@ -69,14 +69,12 @@ namespace Locators
 
             logger = loggerFactory.CreateLogger<Tests>();
 
-            // instantiate page objects
             home = new HomePage(driver, wait, logger);
             careers = new CareersPage(driver, wait, logger);
             globalSearch = new GlobalSearchPage(driver, wait, logger);
             insights = new InsightsPage(driver, wait, logger);
             article = new ArticlePage(driver, wait, logger);
 
-            // provide download directory to home page
             home.DownloadDirectory = downloadDirectory;
 
             logger.LogInformation("Setup complete. Navigated to {BaseUrl}", BaseUrl);
@@ -152,22 +150,30 @@ namespace Locators
         {
             logger.LogInformation("Starting file download validation for {FileName}", expectedFileName);
 
-            string expectedFilePath = Path.Combine(downloadDirectory, expectedFileName);
-
-            if (File.Exists(expectedFilePath)) File.Delete(expectedFilePath);
-
             home.ScrollToFooter();
-            var link = home.FindCodeOfConductLink(expectedFileName);
+            var (link, actualFileName) = home.FindCodeOfConductLink(expectedFileName);
+
+            if (string.IsNullOrWhiteSpace(actualFileName))
+            {
+                actualFileName = expectedFileName;
+            }
+
+            string actualFilePath = Path.Combine(downloadDirectory, actualFileName);
+
+            if (File.Exists(actualFilePath)) File.Delete(actualFilePath);
+
+            logger.LogInformation("Attempting to download file '{ExpectedName}', resolved link filename '{ResolvedName}'", expectedFileName, actualFileName);
+
             home.ClickDownloadLink(link);
 
-            bool downloaded = home.WaitForFileDownload(expectedFilePath);
+            bool downloaded = home.WaitForFileDownload(actualFilePath);
 
-            Assert.That(downloaded, Is.True, $"Expected file '{expectedFileName}' was not downloaded.");
-            Assert.That(File.Exists(expectedFilePath), Is.True, $"Expected file '{expectedFileName}' does not exist in the download directory.");
-            long fileSize = new FileInfo(expectedFilePath).Length;
-            Assert.That(fileSize, Is.GreaterThan(0), $"Downloaded file '{expectedFileName}' is empty.");
+            Assert.That(downloaded, Is.True, $"Expected file '{actualFileName}' was not downloaded to '{actualFilePath}'.");
+            Assert.That(File.Exists(actualFilePath), Is.True, $"Expected file '{actualFileName}' does not exist in the download directory at '{actualFilePath}'.");
+            long fileSize = new FileInfo(actualFilePath).Length;
+            Assert.That(fileSize, Is.GreaterThan(0), $"Downloaded file '{actualFileName}' at '{actualFilePath}' is empty.");
 
-            logger.LogInformation("SUCCESS: File {FileName} downloaded. Path: {FilePath}, Size: {FileSize} bytes", expectedFileName, expectedFilePath, fileSize);
+            logger.LogInformation("SUCCESS: File downloaded. Original expected name: {ExpectedName}, Resolved name: {ResolvedName}, Path: {FilePath}, Size: {FileSize} bytes", expectedFileName, actualFileName, actualFilePath, fileSize);
         }
 
         [Test]

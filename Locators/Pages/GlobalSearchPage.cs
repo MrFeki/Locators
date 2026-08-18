@@ -20,7 +20,7 @@ namespace Locators.Pages
 
         public void ClickGlobalFindButton()
         {
-            var findButton = WaitForVisibleAndEnabled(By.XPath("//span[normalize-space()='Find']/ancestor::button[contains(@class,'custom-search-button')]") );
+            var findButton = WaitForVisibleAndEnabled(By.XPath("//span[normalize-space()='Find']/ancestor::button[contains(@class,'custom-search-button')]"));
             findButton.Click();
             logger.LogInformation("Find button clicked.");
         }
@@ -35,7 +35,7 @@ namespace Locators.Pages
         {
             var terms = (expectedWord ?? string.Empty)
                 .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(t => t.Trim().Trim('"', '“', '”', '\'', '‘', '’'))
+                .Select(t => t.Trim().Trim('"', 'â€œ', 'â€', '\'', 'â€˜', 'â€™'))
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .ToList();
 
