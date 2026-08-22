@@ -32,7 +32,8 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(pageTitle, Is.Not.Null.And.Not.Empty, "Could not determine article page title.");
+            if (string.IsNullOrWhiteSpace(pageTitle))
+                throw new InvalidOperationException("Could not determine article page title.");
 
             return pageTitle!;
         }

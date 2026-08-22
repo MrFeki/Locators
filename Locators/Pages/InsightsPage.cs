@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
@@ -20,14 +19,16 @@ namespace Locators.Pages
 
             bool contentLoaded = wait.Until(d => d.FindElements(By.XPath("//body//h1 | //body//h2 | //body//h3")).Any(e => e.Displayed));
 
-            Assert.That(contentLoaded, Is.True, "Insights content did not load.");
+            if (!contentLoaded)
+                throw new InvalidOperationException("Insights content did not load.");
 
             logger.LogInformation("Insights content loaded.");
         }
 
         public void SwipeCarousel(int numberOfSwipes)
         {
-            Assert.That(numberOfSwipes, Is.GreaterThanOrEqualTo(2), "Carousel must be swiped at least twice.");
+            if (numberOfSwipes < 2)
+                throw new InvalidOperationException("Carousel must be swiped at least twice.");
 
             logger.LogInformation("Swiping carousel {Count} times.", numberOfSwipes);
 
@@ -39,9 +40,10 @@ namespace Locators.Pages
 
                 IWebElement? nextButton = driver.FindElements(nextButtonLocator).FirstOrDefault(b => b.Displayed && b.Enabled);
 
-                Assert.That(nextButton, Is.Not.Null, "Carousel Next button was not found.");
+                if (nextButton is null)
+                    throw new InvalidOperationException("Carousel Next button was not found.");
 
-                ScrollToElement(nextButton!);
+                ScrollToElement(nextButton);
 
                 ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].click();", nextButton);
 
@@ -58,7 +60,8 @@ namespace Locators.Pages
                     }
                 });
 
-                Assert.That(slideChanged, Is.True, $"Carousel did not change after swipe {i + 1}.");
+                if (!slideChanged)
+                    throw new InvalidOperationException($"Carousel did not change after swipe {i + 1}.");
 
                 logger.LogInformation("Carousel swipe {Current}/{Total} completed.", i + 1, numberOfSwipes);
             }
@@ -80,7 +83,9 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(title, Is.Not.Null.And.Not.Empty, "Could not determine current carousel title.");
+            if (string.IsNullOrWhiteSpace(title))
+                throw new InvalidOperationException("Could not determine current carousel title.");
+
             return title!;
         }
 
@@ -118,11 +123,12 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(activeSlide, Is.Not.Null, "Could not locate the active carousel slide.");
+            if (activeSlide is null)
+                throw new InvalidOperationException("Could not locate the active carousel slide.");
 
-            ScrollToElement(activeSlide!);
+            ScrollToElement(activeSlide);
 
-            return activeSlide!;
+            return activeSlide;
         }
 
         public string GetCarouselArticleTitle(IWebElement activeSlide)
@@ -133,11 +139,13 @@ namespace Locators.Pages
 
             IWebElement? titleElement = activeSlide.FindElements(titleLocator).FirstOrDefault(e => e.Displayed && !string.IsNullOrWhiteSpace(e.Text));
 
-            Assert.That(titleElement, Is.Not.Null, "Carousel title element was not found.");
+            if (titleElement is null)
+                throw new InvalidOperationException("Carousel title element was not found.");
 
-            string notedTitle = GetElementText(titleElement!);
+            string notedTitle = GetElementText(titleElement);
 
-            Assert.That(notedTitle, Is.Not.Empty, "Carousel article title was empty.");
+            if (string.IsNullOrWhiteSpace(notedTitle))
+                throw new InvalidOperationException("Carousel article title was empty.");
 
             return notedTitle;
         }
@@ -158,9 +166,10 @@ namespace Locators.Pages
                 articleLink = activeSlide.FindElements(By.XPath(".//a | .//button")).FirstOrDefault(e => e.Displayed && e.Enabled);
             }
 
-            Assert.That(articleLink, Is.Not.Null, "Could not find article link inside active carousel slide.");
+            if (articleLink is null)
+                throw new InvalidOperationException("Could not find article link inside active carousel slide.");
 
-            string href = articleLink!.GetAttribute("href") ?? string.Empty;
+            string href = articleLink.GetAttribute("href") ?? string.Empty;
 
             logger.LogInformation("Clicking carousel article link. Text: '{Text}', href: '{Href}'", GetElementText(articleLink), href);
 

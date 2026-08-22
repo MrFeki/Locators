@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
@@ -149,8 +148,10 @@ namespace Locators.Pages
                     return false;
                 }
             });
-
-            Assert.That(resultsLoaded, Is.True, "Job results did not load.");
+            if (!resultsLoaded)
+            {
+                throw new InvalidOperationException("Job results did not load.");
+            }
 
             logger.LogInformation("New job results loaded.");
         }
@@ -165,7 +166,10 @@ namespace Locators.Pages
 
             var jobResults = driver.FindElements(jobSelector);
 
-            Assert.That(jobResults.Count, Is.GreaterThan(0), "No job results were found.");
+            if (jobResults.Count == 0)
+            {
+                throw new InvalidOperationException("No job results were found.");
+            }
 
             IWebElement? expandButton = wait.Until(d =>
             {
@@ -183,7 +187,10 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(expandButton, Is.Not.Null, "Expand button was not found.");
+            if (expandButton is null)
+            {
+                throw new InvalidOperationException("Expand button was not found.");
+            }
 
             ScrollToElement(expandButton!);
             MoveToElement(expandButton!);
@@ -204,7 +211,10 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(freshExpandButton, Is.Not.Null, "Expand button was not ready for clicking.");
+            if (freshExpandButton is null)
+            {
+                throw new InvalidOperationException("Expand button was not ready for clicking.");
+            }
 
             freshExpandButton!.Click();
 
@@ -231,8 +241,15 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(jobText, Is.Not.Null, $"Latest job does not contain '{programmingLanguage}'.");
-            Assert.That(jobText, Does.Contain(programmingLanguage).IgnoreCase, $"Latest job does not contain '{programmingLanguage}'.");
+            if (jobText is null)
+            {
+                throw new InvalidOperationException($"Latest job does not contain '{programmingLanguage}'.");
+            }
+
+            if (!jobText.Contains(programmingLanguage, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Latest job does not contain '{programmingLanguage}'.");
+            }
 
             logger.LogInformation("Latest job contains {Language}.", programmingLanguage);
         }

@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
@@ -105,9 +104,12 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(codeLink, Is.Not.Null, $"Could not find Code of Ethical Conduct link for '{expectedFileName}'.");
+            if (codeLink is null)
+            {
+                throw new InvalidOperationException($"Could not find Code of Ethical Conduct link for '{expectedFileName}'.");
+            }
 
-            string href = codeLink!.GetAttribute("href") ?? string.Empty;
+            string href = codeLink.GetAttribute("href") ?? string.Empty;
 
             string actualFileName = string.Empty;
             try
