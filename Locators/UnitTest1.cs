@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
+using System.Text.RegularExpressions;
 using Locators.Pages;
 
 namespace Locators
@@ -112,6 +113,12 @@ namespace Locators
             }
         }
 
+        private static string Normalize(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            return Regex.Replace(input, "\\s+", " ").Trim();
+        }
+
         [Test]
         [TestCase("Python", "Mexico")]
         [TestCase("Java", "Serbia")]
@@ -126,8 +133,16 @@ namespace Locators
             careers.ChooseCountry(country);
             careers.SetCheckboxRemote();
             careers.ClickSubmitButton();
-            careers.WaitForJobResults();
-            careers.ValidateLatestJobContainsLanguage(programmingLanguage);
+            bool jobsLoaded = careers.WaitForJobResults();
+
+            var jobText = careers.ValidateFirstJobContainsLanguage(programmingLanguage);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(jobsLoaded, Is.True, "Job results did not load.");
+                Assert.That(jobText, Is.Not.Null.And.Not.Empty, $"Latest job does not contain '{programmingLanguage}'.");
+                Assert.That(jobText, Does.Contain(programmingLanguage).IgnoreCase, $"Latest job does not contain '{programmingLanguage}'.");
+            });
         }
 
         [Test]
@@ -141,23 +156,26 @@ namespace Locators
             globalSearch.EnterGlobalSearchQuery(input, query);
             globalSearch.ClickGlobalFindButton();
             globalSearch.WaitForGlobalSearchResults();
-            globalSearch.ValidateAllLinksContainWord(query);
+            Assert.That(globalSearch.ValidateAllLinksContainWord(query), Is.True, $"No search result matched '{query}'.");
         }
 
         [Test]
-        [TestCase("Code-Of-Conduct_01_26.pdf")]
+        [TestCase("Code_of_Ethical_Conduct.pdf")]
         public void ValidateFileDownload(string expectedFileName)
         {
             logger.LogInformation("Starting file download validation for {FileName}", expectedFileName);
 
             home.ScrollToFooter();
-            var (link, actualFileName) = home.FindCodeOfConductLink(expectedFileName);
+            var (link, resolvedFileName) = home.FindCodeOfConductLink(expectedFileName);
 
-            if (string.IsNullOrWhiteSpace(actualFileName))
+
+            if (!string.IsNullOrWhiteSpace(resolvedFileName) &&
+                !string.Equals(resolvedFileName, expectedFileName, StringComparison.OrdinalIgnoreCase))
             {
-                actualFileName = expectedFileName;
+                Assert.Fail($"Resolved link filename '{resolvedFileName}' does not match expected filename '{expectedFileName}'.");
             }
 
+            string actualFileName = expectedFileName;
             string actualFilePath = Path.Combine(downloadDirectory, actualFileName);
 
             if (File.Exists(actualFilePath)) File.Delete(actualFilePath);
@@ -168,12 +186,15 @@ namespace Locators
 
             bool downloaded = home.WaitForFileDownload(actualFilePath);
 
-            Assert.That(downloaded, Is.True, $"Expected file '{actualFileName}' was not downloaded to '{actualFilePath}'.");
-            Assert.That(File.Exists(actualFilePath), Is.True, $"Expected file '{actualFileName}' does not exist in the download directory at '{actualFilePath}'.");
-            long fileSize = new FileInfo(actualFilePath).Length;
-            Assert.That(fileSize, Is.GreaterThan(0), $"Downloaded file '{actualFileName}' at '{actualFilePath}' is empty.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(downloaded, Is.True, $"Expected file '{actualFileName}' was not downloaded to '{actualFilePath}'.");
+                Assert.That(File.Exists(actualFilePath), Is.True, $"Expected file '{actualFileName}' does not exist at '{actualFilePath}'.");
 
-            logger.LogInformation("SUCCESS: File downloaded. Original expected name: {ExpectedName}, Resolved name: {ResolvedName}, Path: {FilePath}, Size: {FileSize} bytes", expectedFileName, actualFileName, actualFilePath, fileSize);
+                // Add fileSize calculation and assertion
+                var fileSize = File.Exists(actualFilePath) ? new FileInfo(actualFilePath).Length : 0;
+                Assert.That(fileSize, Is.GreaterThan(0), $"Downloaded file '{actualFileName}' is empty.");
+            });
         }
 
         [Test]
@@ -182,18 +203,23 @@ namespace Locators
             logger.LogInformation("Starting carousel article title validation.");
 
             home.ClickInsights();
-            insights.WaitForInsightsContent();
-            insights.SwipeCarousel(3);
-            var active = insights.GetActiveCarouselSlide();
-            string notedTitle = insights.GetCarouselArticleTitle(active);
+            bool insightsLoaded = insights.WaitForInsightsContent();
+            Assert.That(insightsLoaded, Is.True, "Insights content did not load.");
 
+            bool swipeOk = insights.SwipeCarousel(3);
+            Assert.That(swipeOk, Is.True, "Carousel did not swipe correctly.");
+
+            var active = insights.GetActiveCarouselSlide();
+            Assert.That(active, Is.Not.Null, "Could not locate the active carousel slide.");
+
+            string notedTitle = insights.GetCarouselArticleTitle(active!);
             Assert.That(notedTitle, Is.Not.Empty, "Could not determine the visible carousel article title.");
 
             logger.LogInformation("Noted carousel article title: {Title}", notedTitle);
 
-            insights.ClickCarouselArticleLink(active);
-            string pageTitle = article.GetArticlePageTitle();
+            insights.ClickCarouselArticleLink(active!);
 
+            string pageTitle = article.GetArticlePageTitle();
             Assert.That(pageTitle, Is.Not.Empty, "Could not determine article page title.");
             logger.LogInformation("Article page title: {Title}", pageTitle);
 

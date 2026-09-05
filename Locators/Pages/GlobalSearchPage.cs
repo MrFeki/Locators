@@ -31,7 +31,7 @@ namespace Locators.Pages
             logger.LogInformation("Global search results loaded.");
         }
 
-        public void ValidateAllLinksContainWord(string expectedWord)
+        public bool ValidateAllLinksContainWord(string expectedWord)
         {
             var terms = (expectedWord ?? string.Empty)
                 .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
@@ -39,10 +39,18 @@ namespace Locators.Pages
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .ToList();
 
-            Assert.That(terms, Is.Not.Empty, "No expected terms were provided for validation.");
+            if (!terms.Any())
+            {
+                logger.LogWarning("No expected terms were provided for validation.");
+                return false;
+            }
 
             var links = driver.FindElements(By.CssSelector(".search-results__title-link"));
-            Assert.That(links.Count, Is.GreaterThan(0), $"No search results were found for '{expectedWord}'.");
+            if (links.Count == 0)
+            {
+                logger.LogWarning("No search results were found for '{ExpectedWord}'.", expectedWord);
+                return false;
+            }
 
             var linkData = links.Select(link => new
             {
@@ -52,7 +60,11 @@ namespace Locators.Pages
 
             int matchCount = linkData.Count(link => terms.Any(term => link.Text.Contains(term, StringComparison.OrdinalIgnoreCase) || link.Href.Contains(term, StringComparison.OrdinalIgnoreCase)));
 
-            Assert.That(matchCount, Is.GreaterThan(0), $"No search result matched '{expectedWord}'.");
+            if (matchCount == 0)
+            {
+                logger.LogWarning("No search result matched '{ExpectedWord}'.", expectedWord);
+                return false;
+            }
 
             logger.LogInformation("{MatchCount} result(s) matched {ExpectedWord}.", matchCount, expectedWord);
 
@@ -73,7 +85,11 @@ namespace Locators.Pages
 
             var missingTerms = termMatches.Where(r => r.Value.Count == 0).Select(r => r.Key).ToList();
 
-            Assert.That(missingTerms, Is.Empty, $"No links found containing the expected term(s): {string.Join(", ", missingTerms)}.\nAll terms attempted: {string.Join(", ", terms)}.\nLinks observed: {string.Join(" | ", linkData.Select(l => l.Text))}");
+            if (missingTerms.Any())
+            {
+                logger.LogWarning("No links found containing the expected term(s): {Missing}.", string.Join(", ", missingTerms));
+                return false;
+            }
 
             var invalidLinks = linkData.Where(link => !terms.Any(term => link.Text.Contains(term, StringComparison.OrdinalIgnoreCase) || link.Href.Contains(term, StringComparison.OrdinalIgnoreCase))).Select(link => link.Text).ToList();
 
@@ -81,6 +97,8 @@ namespace Locators.Pages
             {
                 logger.LogInformation("{Count} link(s) did not match expected term(s): {Examples}", invalidLinks.Count, string.Join(", ", invalidLinks.Take(5)));
             }
+
+            return true;
         }
     }
 }

@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;

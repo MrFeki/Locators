@@ -1,7 +1,4 @@
-using System;
-using System.Linq;
 using Microsoft.Extensions.Logging;
-using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
@@ -129,7 +126,7 @@ namespace Locators.Pages
             }
         }
 
-        public void WaitForJobResults()
+        public bool WaitForJobResults()
         {
             logger.LogInformation("Waiting for new job results.");
 
@@ -150,14 +147,14 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(resultsLoaded, Is.True, "Job results did not load.");
-
             logger.LogInformation("New job results loaded.");
+
+            return resultsLoaded;
         }
 
-        public void ValidateLatestJobContainsLanguage(string programmingLanguage)
+        public string? ValidateFirstJobContainsLanguage(string programmingLanguage)
         {
-            logger.LogInformation("Validating latest result.");
+            logger.LogInformation("Validating first result.");
 
             By jobSelector = By.CssSelector("[data-testid='accordion-section-container']");
             By expandButtonSelector = By.CssSelector("[data-testid='accordion-section-header-icon-container']");
@@ -165,7 +162,11 @@ namespace Locators.Pages
 
             var jobResults = driver.FindElements(jobSelector);
 
-            Assert.That(jobResults.Count, Is.GreaterThan(0), "No job results were found.");
+            if (jobResults.Count == 0)
+            {
+                logger.LogWarning("No job results were found.");
+                return null;
+            }
 
             IWebElement? expandButton = wait.Until(d =>
             {
@@ -183,10 +184,14 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(expandButton, Is.Not.Null, "Expand button was not found.");
+            if (expandButton is null)
+            {
+                logger.LogWarning("Expand button was not found.");
+                return null;
+            }
 
-            ScrollToElement(expandButton!);
-            MoveToElement(expandButton!);
+            ScrollToElement(expandButton);
+            MoveToElement(expandButton);
 
             IWebElement? freshExpandButton = wait.Until(d =>
             {
@@ -204,9 +209,13 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(freshExpandButton, Is.Not.Null, "Expand button was not ready for clicking.");
+            if (freshExpandButton is null)
+            {
+                logger.LogWarning("Expand button was not ready for clicking.");
+                return null;
+            }
 
-            freshExpandButton!.Click();
+            freshExpandButton.Click();
 
             logger.LogInformation("Latest job expanded.");
 
@@ -231,10 +240,15 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(jobText, Is.Not.Null, $"Latest job does not contain '{programmingLanguage}'.");
-            Assert.That(jobText, Does.Contain(programmingLanguage).IgnoreCase, $"Latest job does not contain '{programmingLanguage}'.");
+            if (jobText is null)
+            {
+                logger.LogWarning("Latest job does not contain '{Language}'.", programmingLanguage);
+                return null;
+            }
 
             logger.LogInformation("Latest job contains {Language}.", programmingLanguage);
+
+            return jobText;
         }
     }
 }
