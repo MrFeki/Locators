@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using System.Threading;
-using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
@@ -69,31 +68,19 @@ namespace Locators.Pages
             }
             catch (ElementClickInterceptedException)
             {
-                HandleCookieBanner();
+                // try to accept cookie banner via framework helper and retry click
+                _ = Locators.Core.WebDriver.BrowserHelpers.TryAcceptCookieBanner(driver);
 
                 remoteLabel = WaitForVisibleAndEnabled(remoteLocator);
                 ScrollToElement(remoteLabel);
                 MoveToElement(remoteLabel);
-                remoteLabel.Click();
+                Locators.Core.WebDriver.BrowserHelpers.SafeClick(driver, remoteLabel);
             }
 
             logger.LogInformation("Remote checkbox selected.");
         }
 
-        private void HandleCookieBanner()
-        {
-            var buttons = driver.FindElements(By.Id("onetrust-accept-btn-handler"));
-            IWebElement? acceptButton = buttons.FirstOrDefault(b => b.Displayed && b.Enabled);
-
-            if (acceptButton is null)
-            {
-                logger.LogInformation("Cookie banner not present.");
-                return;
-            }
-
-            acceptButton.Click();
-            logger.LogInformation("Cookie banner accepted.");
-        }
+        // Cookie banner handling moved to BrowserHelpers in Core to centralize behaviour.
 
         public void ClickSubmitButton()
         {
@@ -127,7 +114,7 @@ namespace Locators.Pages
                 catch (ElementClickInterceptedException)
                 {
                     logger.LogWarning("Click intercepted on attempt {Attempt}, attempting to handle cookie banner and retry.", attempt);
-                    HandleCookieBanner();
+                    _ = Locators.Core.WebDriver.BrowserHelpers.TryAcceptCookieBanner(driver);
                     Thread.Sleep(250);
                 }
             }
@@ -178,22 +165,26 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(resultsLoaded, Is.True, "Job results did not load.");
+            if (!resultsLoaded)
+            {
+                throw new InvalidOperationException("Job results did not load.");
+            }
 
             logger.LogInformation("New job results loaded.");
         }
-
-        public void ValidateLatestJobContainsLanguage(string programmingLanguage)
+        public string GetLatestJobDetails()
         {
-            logger.LogInformation("Validating latest result.");
+            logger.LogInformation("Retrieving latest job details.");
 
             By jobSelector = By.CssSelector("[data-testid='accordion-section-container']");
             By expandButtonSelector = By.CssSelector("[data-testid='accordion-section-header-icon-container']");
             By detailsSelector = By.CssSelector("[data-testid='accordion-section-children-container']");
 
             var jobResults = driver.FindElements(jobSelector);
-
-            Assert.That(jobResults.Count, Is.GreaterThan(0), "No job results were found.");
+            if (jobResults.Count == 0)
+            {
+                throw new InvalidOperationException("No job results were found.");
+            }
 
             IWebElement? expandButton = wait.Until(d =>
             {
@@ -211,10 +202,13 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(expandButton, Is.Not.Null, "Expand button was not found.");
+            if (expandButton is null)
+            {
+                throw new InvalidOperationException("Expand button was not found.");
+            }
 
-            ScrollToElement(expandButton!);
-            MoveToElement(expandButton!);
+            ScrollToElement(expandButton);
+            MoveToElement(expandButton);
 
             IWebElement? freshExpandButton = wait.Until(d =>
             {
@@ -232,13 +226,16 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(freshExpandButton, Is.Not.Null, "Expand button was not ready for clicking.");
+            if (freshExpandButton is null)
+            {
+                throw new InvalidOperationException("Expand button was not ready for clicking.");
+            }
 
-            freshExpandButton!.Click();
+            freshExpandButton.Click();
 
             logger.LogInformation("Latest job expanded.");
 
-            var detailsWait = new WebDriverWait(driver, TimeSpan.FromSeconds(15));
+            var detailsWait = Locators.Core.WebDriver.WaitFactory.Create(driver, 15);
 
             string? jobText = detailsWait.Until(d =>
             {
@@ -250,22 +247,8 @@ namespace Locators.Pages
                     if (details is null || !details.Displayed) return null;
                     string text = details.Text;
                     if (string.IsNullOrWhiteSpace(text)) return null;
-                    logger.LogInformation("Checking expanded job details. Current text length: {Length}", text.Length);
-
-                    bool contains = text.Contains(programmingLanguage, StringComparison.OrdinalIgnoreCase);
-
-                    if (!contains && programmingLanguage.StartsWith('.'))
-                    {
-                        var withoutDot = programmingLanguage.TrimStart('.');
-                        contains = text.Contains(withoutDot, StringComparison.OrdinalIgnoreCase);
-                    }
-
-                    if (!contains && string.Equals(programmingLanguage, ".NET", StringComparison.OrdinalIgnoreCase))
-                    {
-                        contains = text.IndexOf("dotnet", StringComparison.OrdinalIgnoreCase) >= 0;
-                    }
-
-                    return contains ? text : null;
+                    logger.LogInformation("Retrieved expanded job details. Current text length: {Length}", text.Length);
+                    return text;
                 }
                 catch (StaleElementReferenceException)
                 {
@@ -273,10 +256,14 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(jobText, Is.Not.Null, $"Latest job does not contain '{programmingLanguage}'.");
-            Assert.That(jobText, Does.Contain(programmingLanguage).IgnoreCase, $"Latest job does not contain '{programmingLanguage}'.");
+            if (string.IsNullOrWhiteSpace(jobText))
+            {
+                throw new InvalidOperationException("Latest job details could not be obtained.");
+            }
 
-            logger.LogInformation("Latest job contains {Language}.", programmingLanguage);
+            return jobText;
         }
+
+      
     }
 }

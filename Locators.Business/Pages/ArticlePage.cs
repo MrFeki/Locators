@@ -15,7 +15,7 @@ namespace Locators.Pages
         {
             logger.LogInformation("Waiting for article page title.");
 
-            var articleWait = new WebDriverWait(driver, TimeSpan.FromSeconds(15));
+            var articleWait = Locators.Core.WebDriver.WaitFactory.Create(driver, 15);
 
             string? pageTitle = articleWait.Until(d =>
             {
@@ -32,7 +32,10 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(pageTitle, Is.Not.Null.And.Not.Empty, "Could not determine article page title.");
+            if (string.IsNullOrWhiteSpace(pageTitle))
+            {
+                throw new InvalidOperationException("Could not determine article page title.");
+            }
 
             return pageTitle!;
         }

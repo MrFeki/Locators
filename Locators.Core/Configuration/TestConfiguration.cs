@@ -9,11 +9,21 @@ public sealed class TestConfiguration
 
     private TestConfiguration()
     {
-        var root = new ConfigurationBuilder()
+        var initial = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false)
             .AddEnvironmentVariables(prefix: "TAF_")
             .Build();
+
+        var activeEnv = initial["ActiveEnvironment"] ?? "";
+
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile($"appsettings.{activeEnv}.json", optional: true)
+            .AddEnvironmentVariables(prefix: "TAF_");
+
+        var root = builder.Build();
 
         Settings = root.Get<TestSettings>() ?? throw new InvalidOperationException("TAF configuration is invalid.");
         Validate(Settings);

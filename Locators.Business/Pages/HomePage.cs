@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
@@ -56,7 +55,7 @@ namespace Locators.Pages
         {
             logger.LogInformation("Scrolling up until Code of Ethical Conduct link is visible.");
 
-            var downloadWait = new WebDriverWait(driver, TimeSpan.FromSeconds(30));
+            var downloadWait = Locators.Core.WebDriver.WaitFactory.Create(driver, 30);
 
             By linkLocator = By.XPath("//a[normalize-space()='Code of Ethical Conduct (PDF)']");
 
@@ -68,7 +67,7 @@ namespace Locators.Pages
 
                     if (link is not null)
                     {
-                        ((IJavaScriptExecutor)d).ExecuteScript("arguments[0].scrollIntoView({block:'center', inline:'nearest'});", link);
+                        Locators.Core.WebDriver.BrowserHelpers.ScrollIntoView(d, link);
 
                         bool isInsideViewport = (bool)((IJavaScriptExecutor)d).ExecuteScript(@"
                                 const rect = arguments[0].getBoundingClientRect();
@@ -106,7 +105,10 @@ namespace Locators.Pages
                 }
             });
 
-            Assert.That(codeLink, Is.Not.Null, $"Could not find Code of Ethical Conduct link for '{expectedFileName}'.");
+            if (codeLink is null)
+            {
+                throw new InvalidOperationException($"Could not find Code of Ethical Conduct link for '{expectedFileName}'.");
+            }
 
             string href = codeLink!.GetAttribute("href") ?? string.Empty;
 
@@ -143,18 +145,10 @@ namespace Locators.Pages
         {
             logger.LogInformation("Waiting for file download.");
 
-            var downloadWait = new WebDriverWait(driver, TimeSpan.FromSeconds(30));
+            var downloadWait = Locators.Core.WebDriver.WaitFactory.Create(driver, 30);
 
-            bool downloaded = downloadWait.Until(d =>
-            {
-                bool expectedFileExists = File.Exists(expectedFilePath);
-                bool temporaryDownloadExists = Directory.GetFiles(DownloadDirectory, "*.crdownload").Any();
-
-                if (!expectedFileExists || temporaryDownloadExists) return false;
-
-                long fileSize = new FileInfo(expectedFilePath).Length;
-                return fileSize > 0;
-            });
+            // Use centralized helper to wait for file download
+            bool downloaded = Locators.Core.WebDriver.BrowserHelpers.WaitForFileDownload(driver, DownloadDirectory, expectedFilePath, 30);
 
             logger.LogInformation("File download completed.");
 

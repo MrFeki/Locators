@@ -21,7 +21,8 @@ public sealed class Tests : BaseTest
         Home.ClickCareers(); Careers.ClickStartYourSearch();
         Careers.SearchForProgrammingLanguage(programmingLanguage); Careers.ChooseCountry(country);
         Careers.SetCheckboxRemote(); Careers.ClickSubmitButton(); Careers.WaitForJobResults();
-        Careers.ValidateLatestJobContainsLanguage(programmingLanguage);
+        var details = Careers.GetLatestJobDetails();
+        Assert.That(details, Does.Contain(programmingLanguage).IgnoreCase, $"Latest job does not contain '{programmingLanguage}'.");
     }
 
     [TestCaseSource(nameof(SearchKeywords))]
@@ -30,14 +31,33 @@ public sealed class Tests : BaseTest
         Logger.LogInformation("Run global search for {Query}", query);
         Home.ClickSearchIcon(); GlobalSearch.EnterGlobalSearchQuery(Home.GetGlobalSearchInput(), query);
         GlobalSearch.ClickGlobalFindButton(); GlobalSearch.WaitForGlobalSearchResults();
-        GlobalSearch.ValidateAllLinksContainWord(query);
+
+        var summaries = GlobalSearch.GetSearchResultsSummary(query);
+
+        Logger.LogInformation("Search results for '{Query}' (Total: {Total}):", query, summaries.Count);
+        foreach (var s in summaries)
+        {
+            if (s.IsMatch)
+            {
+                Logger.LogInformation("MATCH -> Text: '{Text}', href: '{Href}', Terms: {Terms}", s.Text, s.Href, string.Join(", ", s.MatchedTerms));
+            }
+            else
+            {
+                Logger.LogWarning("NO MATCH -> Text: '{Text}', href: '{Href}'", s.Text, s.Href);
+            }
+        }
+
+        Assert.That(GlobalSearch.ValidateAllLinksContainWord(query), Is.True, $"Not all search results matched '{query}'.");
     }
 
-    [TestCase("Code-Of-Conduct_01_26.pdf")]
+    [TestCase("Code_of_Ethical_Conduct.pdf")]
     public void ValidateFileDownload(string expectedFileName)
     {
         var (codeLink, actualFileName) = Home.FindCodeOfConductLink(expectedFileName);
-        var expectedFilePath = Path.Combine(DownloadDirectory, actualFileName);
+
+        Assert.That(actualFileName, Is.EqualTo(expectedFileName), "The download link points to a different file than expected.");
+
+        var expectedFilePath = Path.Combine(DownloadDirectory, expectedFileName);
         if (File.Exists(expectedFilePath)) File.Delete(expectedFilePath);
         Home.ScrollToFooter();
         Home.ClickDownloadLink(codeLink);
@@ -46,7 +66,6 @@ public sealed class Tests : BaseTest
             Assert.That(Home.WaitForFileDownload(expectedFilePath), Is.True, "Download did not complete.");
             Assert.That(new FileInfo(expectedFilePath).Length, Is.GreaterThan(0), "Downloaded file is empty.");
         });
-        Logger.LogInformation("Downloaded {File} to {Path}", actualFileName, expectedFilePath);
     }
 
     [Test]
@@ -59,6 +78,5 @@ public sealed class Tests : BaseTest
         var articleTitle = Article.GetArticlePageTitle();
         Assert.That(articleTitle, Does.StartWith(carouselTitle).IgnoreCase,
             $"Article title '{articleTitle}' does not match carousel title '{carouselTitle}'.");
-        Logger.LogInformation("Article title matches carousel title: {Title}", carouselTitle);
     }
 }

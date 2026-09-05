@@ -30,7 +30,7 @@ public abstract class BaseTest
         Logger = loggerFactory.CreateLogger(GetType());
         Logger.LogInformation("START {Test}; environment={Environment}; browser={Browser}", testName, settings.ActiveEnvironment, settings.Browser);
         Driver = BrowserFactory.Create(settings, DownloadDirectory);
-        Wait = new WebDriverWait(Driver, TimeSpan.FromSeconds(settings.ExplicitWaitSeconds));
+        Wait = Locators.Core.WebDriver.WaitFactory.Create(Driver);
         Driver.Navigate().GoToUrl(settings.Environment.BaseUrl);
         Logger.LogInformation("Opened {Url}", settings.Environment.BaseUrl);
     }
