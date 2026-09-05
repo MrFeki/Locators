@@ -107,7 +107,7 @@ namespace Locators.Features
     testRunner.Given("I open the website homepage", ((string)(null)), ((TechTalk.SpecFlow.Table)(null)), "Given ");
 #line hidden
 #line 9
-    testRunner.When("I click the \"Services\" link", ((string)(null)), ((TechTalk.SpecFlow.Table)(null)), "When ");
+    testRunner.When("I hover over the Services link", ((string)(null)), ((TechTalk.SpecFlow.Table)(null)), "When ");
 #line hidden
 #line 10
     testRunner.And(string.Format("I select the \"{0}\" service from the dropdown", category), ((string)(null)), ((TechTalk.SpecFlow.Table)(null)), "And ");

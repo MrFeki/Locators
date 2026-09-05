@@ -76,7 +76,7 @@ namespace Locators.Features
         
         [NUnit.Framework.TestAttribute()]
         [NUnit.Framework.DescriptionAttribute("Validate File Download")]
-        [NUnit.Framework.TestCaseAttribute("Code-Of-Conduct_01_26.pdf", null)]
+        [NUnit.Framework.TestCaseAttribute("Code_of_Ethical_Conduct.pdf", null)]
         public void ValidateFileDownload(string expectedFile, string[] exampleTags)
         {
             string[] tagsOfScenario = exampleTags;

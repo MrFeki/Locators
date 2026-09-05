@@ -33,60 +33,18 @@ namespace Locators.Pages
             logger.LogInformation("Global search results loaded.");
         }
 
-        public void ValidateAllLinksContainWord(string expectedWord)
+        /// <summary>
+        /// Returns the search result links as a list of text/href tuples. Page object does not assert; it only returns state.
+        /// </summary>
+        public System.Collections.Generic.List<(string Text, string Href)> GetSearchResultLinks()
         {
-            var terms = (expectedWord ?? string.Empty)
-                .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(t => t.Trim().Trim('"', '“', '”', '\'', '‘', '’'))
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .ToList();
-
-            if (!terms.Any())
-                throw new InvalidOperationException("No expected terms were provided for validation.");
-
             var links = driver.FindElements(By.CssSelector(".search-results__title-link")).ToList();
-            if (links.Count == 0)
-                throw new InvalidOperationException($"No search results were found for '{expectedWord}'.");
 
-            var linkData = links.Select(link => new
-            {
-                Text = GetElementText(link),
-                Href = link.GetAttribute("href") ?? string.Empty
-            }).ToList();
+            var linkData = links.Select(link => (Text: GetElementText(link), Href: link.GetAttribute("href") ?? string.Empty)).ToList();
 
-            int matchCount = linkData.Count(link => terms.Any(term => link.Text.Contains(term, StringComparison.OrdinalIgnoreCase) || link.Href.Contains(term, StringComparison.OrdinalIgnoreCase)));
+            logger.LogInformation("Retrieved {Count} search result link(s).", linkData.Count);
 
-            if (matchCount == 0)
-                throw new InvalidOperationException($"No search result matched '{expectedWord}'.");
-
-            logger.LogInformation("{MatchCount} result(s) matched {ExpectedWord}.", matchCount, expectedWord);
-
-            var termMatches = terms.ToDictionary(term => term, term => linkData.Where(link => link.Text.Contains(term, StringComparison.OrdinalIgnoreCase) || link.Href.Contains(term, StringComparison.OrdinalIgnoreCase)).Select(link => link.Text).ToList());
-
-            foreach (var link in linkData)
-            {
-                var matchedTerms = terms.Where(term => link.Text.Contains(term, StringComparison.OrdinalIgnoreCase) || link.Href.Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
-                if (matchedTerms.Count > 0)
-                {
-                    logger.LogInformation("MATCH -> Text: '{Text}', href: '{Href}', Terms: {Terms}", link.Text, link.Href, string.Join(", ", matchedTerms));
-                }
-                else
-                {
-                    logger.LogWarning("NO MATCH -> Text: '{Text}', href: '{Href}'", link.Text, link.Href);
-                }
-            }
-
-            var missingTerms = termMatches.Where(r => r.Value.Count == 0).Select(r => r.Key).ToList();
-
-            if (missingTerms.Any())
-                throw new InvalidOperationException($"No links found containing the expected term(s): {string.Join(", ", missingTerms)}.\nAll terms attempted: {string.Join(", ", terms)}.\nLinks observed: {string.Join(" | ", linkData.Select(l => l.Text))}");
-
-            var invalidLinks = linkData.Where(link => !terms.Any(term => link.Text.Contains(term, StringComparison.OrdinalIgnoreCase) || link.Href.Contains(term, StringComparison.OrdinalIgnoreCase))).Select(link => link.Text).ToList();
-
-            if (invalidLinks.Count > 0)
-            {
-                logger.LogInformation("{Count} link(s) did not match expected term(s): {Examples}", invalidLinks.Count, string.Join(", ", invalidLinks.Take(5)));
-            }
+            return linkData;
         }
     }
 }

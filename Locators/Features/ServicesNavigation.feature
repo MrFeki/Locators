@@ -6,7 +6,7 @@ Feature: Services navigation
   @services
   Scenario Outline: Validate Navigation to Services Section
     Given I open the website homepage
-    When I click the "Services" link
+    When I hover over the Services link
     And I select the "<Category>" service from the dropdown
     Then I should see a page title containing "<ExpectedTitle>"
     And the "Our Related Expertise" section should be visible

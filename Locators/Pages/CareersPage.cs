@@ -156,102 +156,117 @@ namespace Locators.Pages
             logger.LogInformation("New job results loaded.");
         }
 
-        public void ValidateLatestJobContainsLanguage(string programmingLanguage)
+        /// <summary>
+        /// Returns the expanded text of the latest job result or null if it couldn't be obtained.
+        /// This method does not perform assertions; it only returns page state.
+        /// </summary>
+        public string? GetLatestJobDetails(TimeSpan? timeout = null)
         {
-            logger.LogInformation("Validating latest result.");
+            logger.LogInformation("Retrieving latest job details.");
 
             By jobSelector = By.CssSelector("[data-testid='accordion-section-container']");
             By expandButtonSelector = By.CssSelector("[data-testid='accordion-section-header-icon-container']");
             By detailsSelector = By.CssSelector("[data-testid='accordion-section-children-container']");
 
-            var jobResults = driver.FindElements(jobSelector);
-
-            if (jobResults.Count == 0)
+            try
             {
-                throw new InvalidOperationException("No job results were found.");
-            }
-
-            IWebElement? expandButton = wait.Until(d =>
-            {
-                try
+                var jobResults = driver.FindElements(jobSelector);
+                if (jobResults.Count == 0)
                 {
-                    var jobs = d.FindElements(jobSelector);
-                    if (jobs.Count == 0) return null;
-                    var button = jobs.First().FindElements(expandButtonSelector).FirstOrDefault();
-                    if (button is null) return null;
-                    return button.Displayed && button.Enabled ? button : null;
-                }
-                catch (StaleElementReferenceException)
-                {
+                    logger.LogInformation("No job results were found.");
                     return null;
                 }
-            });
 
-            if (expandButton is null)
-            {
-                throw new InvalidOperationException("Expand button was not found.");
-            }
-
-            ScrollToElement(expandButton!);
-            MoveToElement(expandButton!);
-
-            IWebElement? freshExpandButton = wait.Until(d =>
-            {
-                try
+                IWebElement? expandButton = wait.Until(d =>
                 {
-                    var jobs = d.FindElements(jobSelector);
-                    if (jobs.Count == 0) return null;
-                    var button = jobs.First().FindElements(expandButtonSelector).FirstOrDefault();
-                    if (button is null) return null;
-                    return button.Displayed && button.Enabled ? button : null;
-                }
-                catch (StaleElementReferenceException)
+                    try
+                    {
+                        var jobs = d.FindElements(jobSelector);
+                        if (jobs.Count == 0) return null;
+                        var button = jobs.First().FindElements(expandButtonSelector).FirstOrDefault();
+                        if (button is null) return null;
+                        return button.Displayed && button.Enabled ? button : null;
+                    }
+                    catch (StaleElementReferenceException)
+                    {
+                        return null;
+                    }
+                });
+
+                if (expandButton is null)
                 {
+                    logger.LogInformation("Expand button was not found.");
                     return null;
                 }
-            });
 
-            if (freshExpandButton is null)
-            {
-                throw new InvalidOperationException("Expand button was not ready for clicking.");
-            }
+                ScrollToElement(expandButton);
+                MoveToElement(expandButton);
 
-            freshExpandButton!.Click();
-
-            logger.LogInformation("Latest job expanded.");
-
-            var detailsWait = new WebDriverWait(driver, TimeSpan.FromSeconds(15));
-
-            string? jobText = detailsWait.Until(d =>
-            {
-                try
+                IWebElement? freshExpandButton = wait.Until(d =>
                 {
-                    var jobs = d.FindElements(jobSelector);
-                    if (jobs.Count == 0) return null;
-                    var details = jobs.First().FindElements(detailsSelector).FirstOrDefault();
-                    if (details is null || !details.Displayed) return null;
-                    string text = details.Text;
-                    if (string.IsNullOrWhiteSpace(text)) return null;
-                    logger.LogInformation("Checking expanded job details. Current text length: {Length}", text.Length);
-                    return text.Contains(programmingLanguage, StringComparison.OrdinalIgnoreCase) ? text : null;
-                }
-                catch (StaleElementReferenceException)
+                    try
+                    {
+                        var jobs = d.FindElements(jobSelector);
+                        if (jobs.Count == 0) return null;
+                        var button = jobs.First().FindElements(expandButtonSelector).FirstOrDefault();
+                        if (button is null) return null;
+                        return button.Displayed && button.Enabled ? button : null;
+                    }
+                    catch (StaleElementReferenceException)
+                    {
+                        return null;
+                    }
+                });
+
+                if (freshExpandButton is null)
                 {
+                    logger.LogInformation("Expand button was not ready for clicking.");
                     return null;
                 }
-            });
 
-            if (jobText is null)
-            {
-                throw new InvalidOperationException($"Latest job does not contain '{programmingLanguage}'.");
+                freshExpandButton.Click();
+
+                logger.LogInformation("Latest job expanded.");
+
+                var detailsWait = new WebDriverWait(driver, timeout ?? TimeSpan.FromSeconds(15));
+
+                string? jobText = detailsWait.Until(d =>
+                {
+                    try
+                    {
+                        var jobs = d.FindElements(jobSelector);
+                        if (jobs.Count == 0) return null;
+                        var details = jobs.First().FindElements(detailsSelector).FirstOrDefault();
+                        if (details is null || !details.Displayed) return null;
+                        string text = details.Text;
+                        if (string.IsNullOrWhiteSpace(text)) return null;
+                        logger.LogInformation("Checking expanded job details. Current text length: {Length}", text.Length);
+                        return text;
+                    }
+                    catch (StaleElementReferenceException)
+                    {
+                        return null;
+                    }
+                });
+
+                return jobText;
             }
-
-            if (!jobText.Contains(programmingLanguage, StringComparison.OrdinalIgnoreCase))
+            catch (Exception ex)
             {
-                throw new InvalidOperationException($"Latest job does not contain '{programmingLanguage}'.");
+                logger.LogWarning(ex, "An error occurred while retrieving latest job details.");
+                return null;
             }
+        }
 
-            logger.LogInformation("Latest job contains {Language}.", programmingLanguage);
+        /// <summary>
+        /// Helper to check whether the latest job details contain the given programming language.
+        /// This method returns a boolean and does not throw for verification failures.
+        /// </summary>
+        public bool LatestJobContains(string programmingLanguage)
+        {
+            var details = GetLatestJobDetails();
+            if (string.IsNullOrWhiteSpace(details)) return false;
+            return details.Contains(programmingLanguage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

@@ -61,7 +61,9 @@ namespace Locators.Features.Steps
         [Then("the latest job should contain \"(.*)\"")]
         public void ThenTheLatestJobShouldContain(string language)
         {
-            careers.ValidateLatestJobContainsLanguage(language);
+            var details = careers.GetLatestJobDetails();
+            Assert.IsNotNull(details, "Latest job details were not available.");
+            Assert.IsTrue(details!.IndexOf(language, StringComparison.OrdinalIgnoreCase) >= 0, $"Latest job does not contain '{language}'. Details: {details}");
         }
     }
 }

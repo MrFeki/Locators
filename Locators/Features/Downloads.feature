@@ -12,4 +12,4 @@ Feature: File downloads
 
     Examples:
       | ExpectedFile                  |
-      | Code-Of-Conduct_01_26.pdf     |
+      | Code_of_Ethical_Conduct.pdf   |

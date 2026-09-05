@@ -11,11 +11,15 @@ namespace Locators.Pages
         {
         }
 
-        public string GetArticlePageTitle()
+        /// <summary>
+        /// Reads the article page main heading (H1..H3) and returns it, or null if not found within the timeout.
+        /// This method does not perform assertions; callers should verify the returned value in steps.
+        /// </summary>
+        public string? GetArticlePageTitle(TimeSpan? timeout = null)
         {
-            logger.LogInformation("Waiting for article page title.");
+            logger.LogInformation("Reading article page title.");
 
-            var articleWait = new WebDriverWait(driver, TimeSpan.FromSeconds(15));
+            var articleWait = new WebDriverWait(driver, timeout ?? TimeSpan.FromSeconds(15));
 
             string? pageTitle = articleWait.Until(d =>
             {
@@ -30,12 +34,14 @@ namespace Locators.Pages
                 {
                     return null;
                 }
+                catch
+                {
+                    return null;
+                }
             });
 
-            if (string.IsNullOrWhiteSpace(pageTitle))
-                throw new InvalidOperationException("Could not determine article page title.");
-
-            return pageTitle!;
+            logger.LogInformation("Article page title read: {Title}", pageTitle);
+            return pageTitle;
         }
     }
 }

@@ -18,10 +18,20 @@ namespace Locators.Features.Steps
         [Given(@"I open the EPAM homepage")]
         public void GivenIOpenTheWebsiteHomepage()
         {
-            // Navigation is performed in the BeforeScenario hook (TestContextHelper.Init)
-            // This step simply ensures we have an initialized driver and marks the step as implemented.
             if (TestContextHelper.Driver == null)
                 throw new InvalidOperationException("WebDriver was not initialized. Ensure SpecFlow hooks ran.");
+
+            if (string.IsNullOrWhiteSpace(TestContextHelper.BaseUrl))
+                throw new InvalidOperationException("BaseUrl is not configured. Set TestContextHelper.BaseUrl to the application's homepage URL.");
+
+            try
+            {
+                TestContextHelper.Driver.Navigate().GoToUrl(TestContextHelper.BaseUrl);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to navigate to the application homepage '{TestContextHelper.BaseUrl}'.", ex);
+            }
         }
     }
 }
