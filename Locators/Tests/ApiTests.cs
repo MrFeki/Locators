@@ -111,6 +111,7 @@ namespace Locators.Tests
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 var body = await response.Content.ReadAsStringAsync();
+                Log.Error("Unexpected response {Status} for {Uri}. Body: {Body}", response.StatusCode, response.RequestMessage.RequestUri, body);
                 Log.Information("Status: {Status}, Body: {Body}", response.StatusCode, body);
             }
 
@@ -124,15 +125,17 @@ namespace Locators.Tests
             Assert.IsNotNull(users, "Users should deserialize");
             Assert.IsTrue(users!.Count > 0, "Users list should not be empty");
 
-            var user = users.First();
-            Assert.IsNotNull(user.Id);
-            Assert.IsNotNull(user.Name);
-            Assert.IsNotNull(user.Username);
-            Assert.IsNotNull(user.Email);
-            Assert.IsNotNull(user.Address);
-            Assert.IsNotNull(user.Phone);
-            Assert.IsNotNull(user.Website);
-            Assert.IsNotNull(user.Company);
+            foreach (var u in users)
+            {
+                Assert.That(u.Id, Is.GreaterThan(0)); 
+                Assert.IsFalse(string.IsNullOrWhiteSpace(u.Name), "User Name should not be empty");
+                Assert.IsFalse(string.IsNullOrWhiteSpace(u.Username), "User Username should not be empty");
+                Assert.IsFalse(string.IsNullOrWhiteSpace(u.Email), "User Email should not be empty");
+                Assert.IsNotNull(u.Address, "User Address should not be null");
+                Assert.IsFalse(string.IsNullOrWhiteSpace(u.Phone), "User Phone should not be empty");
+                Assert.IsFalse(string.IsNullOrWhiteSpace(u.Website), "User Website should not be empty");
+                Assert.IsNotNull(u.Company, "User Company should not be null");
+            }
 
             Log.Information("Validated presence of required user fields");
         }
@@ -152,6 +155,7 @@ namespace Locators.Tests
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 var body = await response.Content.ReadAsStringAsync();
+                Log.Error("Unexpected response {Status} for {Uri}. Body: {Body}", response.StatusCode, response.RequestMessage.RequestUri, body);
                 Log.Information("Status: {Status}, Body: {Body}", response.StatusCode, body);
             }
 
@@ -180,6 +184,7 @@ namespace Locators.Tests
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 var body = await response.Content.ReadAsStringAsync();
+                Log.Error("Unexpected response {Status} for {Uri}. Body: {Body}", response.StatusCode, response.RequestMessage.RequestUri, body);
                 Log.Information("Status: {Status}, Body: {Body}", response.StatusCode, body);
             }
 
@@ -211,7 +216,7 @@ namespace Locators.Tests
         {
             Log.Information("Test: CreateUser_PostCreatesUser_Returns201AndId - Sending POST /users");
 
-            var payload = new { name = "Test User", username = "testuser" };
+            var payload = new Locators.Business.Models.CreateUserRequest { Name = "Test User", Username = "testuser" };
             var request = RequestBuilder.Create().WithMethod(HttpMethod.Post).WithEndpoint("users").WithJsonBody(payload).Build();
             var response = await _client!.SendAsync(request);
 
@@ -221,6 +226,7 @@ namespace Locators.Tests
             if (response.StatusCode != System.Net.HttpStatusCode.Created)
             {
                 var body = await response.Content.ReadAsStringAsync();
+                Log.Error("Unexpected response {Status} for {Uri}. Body: {Body}", response.StatusCode, response.RequestMessage.RequestUri, body);
                 Log.Information("Status: {Status}, Body: {Body}", response.StatusCode, body);
             }
 
@@ -229,22 +235,20 @@ namespace Locators.Tests
             var content = await response.Content.ReadAsStringAsync();
             Assert.IsFalse(string.IsNullOrWhiteSpace(content), "Response should not be empty");
 
-            // Validate POST response contains an id and echoes submitted fields where supported.
-            // Note: the default test server (jsonplaceholder) does not persist created resources for later GETs.
-            using var doc = JsonDocument.Parse(content);
-            Assert.IsTrue(doc.RootElement.TryGetProperty("id", out var idProp), "Response should contain id");
-            Assert.IsTrue(idProp.GetRawText().Length > 0, "Id value should not be empty");
+            var created = JsonSerializer.Deserialize<Locators.Business.Models.CreateUserResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            Assert.IsNotNull(created, "Response should deserialize to CreateUserResponse");
+            Assert.IsTrue(created!.Id.HasValue && created.Id.Value > 0, "Id value should be present and > 0");
 
-            if (doc.RootElement.TryGetProperty("name", out var nameProp))
+            if (!string.IsNullOrWhiteSpace(created.Name))
             {
-                Assert.AreEqual("Test User", nameProp.GetString(), "Returned name should match payload");
+                Assert.AreEqual("Test User", created.Name, "Returned name should match payload");
             }
-            if (doc.RootElement.TryGetProperty("username", out var usernameProp))
+            if (!string.IsNullOrWhiteSpace(created.Username))
             {
-                Assert.AreEqual("testuser", usernameProp.GetString(), "Returned username should match payload");
+                Assert.AreEqual("testuser", created.Username, "Returned username should match payload");
             }
 
-            Log.Information("User created with id {Id}", idProp.ToString());
+            Log.Information("User created with id {Id}", created.Id);
         }
 
         [Test]
@@ -262,6 +266,7 @@ namespace Locators.Tests
             if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
             {
                 var body = await response.Content.ReadAsStringAsync();
+                Log.Error("Unexpected response {Status} for {Uri}. Body: {Body}", response.StatusCode, response.RequestMessage.RequestUri, body);
                 Log.Information("Status: {Status}, Body: {Body}", response.StatusCode, body);
             }
 

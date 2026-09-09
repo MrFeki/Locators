@@ -33,4 +33,17 @@ namespace Locators.Business.Models
         public string? CatchPhrase { get; set; }
         public string? Bs { get; set; }
     }
+
+    public class CreateUserRequest
+    {
+        public string? Name { get; set; }
+        public string? Username { get; set; }    }
+
+    public class CreateUserResponse
+    {
+        public int? Id { get; set; }
+        public string? Name { get; set; }
+        public string? Username { get; set; }
+
+    }
 }
