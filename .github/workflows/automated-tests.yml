@@ -1,0 +1,88 @@
+name: Automated Tests
+
+on:
+  pull_request:
+    branches:
+      - BDD
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: "Select browser for UI tests"
+        required: true
+        default: "chrome"
+        type: choice
+        options:
+          - chrome
+          - edge
+
+permissions:
+  contents: read
+
+jobs:
+  api-tests:
+    name: API Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Restore
+        run: dotnet restore Locators.sln
+      - name: Build
+        run: dotnet build Locators.sln --configuration Release --no-restore
+      - name: Run API tests
+        run: dotnet test Locators.sln --configuration Release --no-build --filter "TestCategory=API" --logger "trx;LogFileName=api-tests.trx" --results-directory "${{ github.workspace }}\TestResults\API"
+      - name: Upload API results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-artifacts
+          path: |
+            TestResults/API/**
+            **/logs/**
+          if-no-files-found: ignore
+
+  ui-tests:
+    name: UI Tests
+    needs: api-tests
+    if: always()
+    runs-on: windows-latest
+    env:
+      HEADLESS: "true"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Restore
+        run: dotnet restore Locators.sln
+      - name: Build
+        run: dotnet build Locators.sln --configuration Release --no-restore
+      - name: Select browser
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "BROWSER=${{ inputs.browser }}" >> $env:GITHUB_ENV
+          } else {
+            "BROWSER=chrome" >> $env:GITHUB_ENV
+          }
+      - name: Run UI tests
+        run: dotnet test Locators.sln --configuration Release --no-build --filter "TestCategory!=API" --logger "trx;LogFileName=ui-tests.trx" --results-directory "${{ github.workspace }}\TestResults\UI"
+      - name: Upload UI results and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-artifacts
+          path: |
+            TestResults/UI/**
+            **/Screenshots/**
+            **/Downloads/**
+            **/logs/**
+          if-no-files-found: ignore
