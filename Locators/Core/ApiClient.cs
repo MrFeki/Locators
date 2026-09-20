@@ -38,6 +38,8 @@ namespace Locators.Core
 
         private static void LogResponse(RestRequest request, RestResponse response)
         {
+            var contentType = response.ContentType ?? "<null>";
+            Log.Information("API response content-type: {ContentType}", contentType);
             if (response.IsSuccessful)
             {
                 Log.Information("API response: {Method} {Resource} -> {StatusCode}",
