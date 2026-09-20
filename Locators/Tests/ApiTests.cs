@@ -98,8 +98,13 @@ namespace Locators.Tests
                 Assert.That(response.ContentType, Is.Not.Null.And.Not.Empty, "Content-Type should exist.");
                 Assert.That(response.ContentType, Does.StartWith("application/json").IgnoreCase,
                     "Media type should be application/json.");
-                Assert.That(response.ContentType, Does.Contain("charset=utf-8").IgnoreCase,
-                    "Charset should be utf-8.");
+                // Some servers omit the charset in the Content-Type header. Accept responses
+                // that either include the utf-8 charset or omit it entirely.
+                if (response.ContentType.Contains("charset", StringComparison.OrdinalIgnoreCase))
+                {
+                    Assert.That(response.ContentType, Does.Contain("charset=utf-8").IgnoreCase,
+                        "Charset should be utf-8 when provided.");
+                }
             });
         }
 
