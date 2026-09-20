@@ -4,6 +4,7 @@ using NUnit.Framework;
 using RestSharp;
 using Serilog;
 using System.Net;
+using System.Net.Http.Headers;
 
 namespace Locators.Tests
 {
@@ -93,18 +94,16 @@ namespace Locators.Tests
             ApiTestHelpers.AssertResponse(response, HttpStatusCode.OK);
             ApiTestHelpers.AssertResponseUri(response, _baseApiUrl, "users");
 
+            Assert.That(response.ContentType, Is.Not.Null.And.Not.Empty, "Content-Type should exist.");
+
+            var contentType = MediaTypeHeaderValue.Parse(response.ContentType!);
+
             Assert.Multiple(() =>
             {
-                Assert.That(response.ContentType, Is.Not.Null.And.Not.Empty, "Content-Type should exist.");
-                Assert.That(response.ContentType, Does.StartWith("application/json").IgnoreCase,
+                Assert.That(contentType.MediaType, Is.EqualTo("application/json").IgnoreCase,
                     "Media type should be application/json.");
-                // Some servers omit the charset in the Content-Type header. Accept responses
-                // that either include the utf-8 charset or omit it entirely.
-                if (response.ContentType.Contains("charset", StringComparison.OrdinalIgnoreCase))
-                {
-                    Assert.That(response.ContentType, Does.Contain("charset=utf-8").IgnoreCase,
-                        "Charset should be utf-8 when provided.");
-                }
+                Assert.That(contentType.CharSet, Is.EqualTo("utf-8").IgnoreCase,
+                    "Charset should be utf-8.");
             });
         }
 
