@@ -4,13 +4,6 @@ namespace Locators.Core
 {
     public class RequestBuilder
     {
-        private Method _method = Method.Get;
-        private string _endpoint = string.Empty;
-        private object? _body;
-        private readonly Dictionary<string, string> _headers = new();
-
-        private RequestBuilder() { }
-
         public static RequestBuilder Create() => new();
 
         public RequestBuilder WithMethod(Method method)
@@ -52,5 +45,12 @@ namespace Locators.Core
 
             return request;
         }
+
+        private Method _method = Method.Get;
+        private string _endpoint = string.Empty;
+        private object? _body;
+        private readonly Dictionary<string, string> _headers = new();
+
+        private RequestBuilder() { }
     }
 }

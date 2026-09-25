@@ -5,8 +5,6 @@ namespace Locators.Core
 {
     public class ApiClient : IDisposable
     {
-        private readonly RestClient _client;
-
         public ApiClient(string baseUrl)
         {
             if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri))
@@ -31,6 +29,13 @@ namespace Locators.Core
             return response;
         }
 
+        public void Dispose()
+        {
+            _client.Dispose();
+        }
+
+        private readonly RestClient _client;
+
         private static void LogRequest(RestRequest request)
         {
             Log.Information("API request: {Method} {Resource}", request.Method, request.Resource);
@@ -50,11 +55,6 @@ namespace Locators.Core
             Log.Error("API response failed: {Method} {Resource} -> {StatusCode}. Error: {Error}. Body: {Body}",
                 request.Method, request.Resource, (int)response.StatusCode,
                 response.ErrorMessage, response.Content);
-        }
-
-        public void Dispose()
-        {
-            _client.Dispose();
         }
     }
 }

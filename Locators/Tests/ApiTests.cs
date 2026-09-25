@@ -1,5 +1,6 @@
 using Locators.Business.Models;
 using Locators.Core;
+using Locators.Tests.Helpers;
 using NUnit.Framework;
 using RestSharp;
 using Serilog;
@@ -12,23 +13,17 @@ namespace Locators.Tests
     [Parallelizable(ParallelScope.All)]
     public class ApiTests
     {
-        private static ApiClient? _client;
-        private static string _baseApiUrl = string.Empty;
-
         [OneTimeSetUp]
         public void OneTimeSetup()
         {
             var config = ApiTestHelpers.LoadConfiguration();
             ApiTestHelpers.ConfigureLogging(config);
 
-            _baseApiUrl = config["BaseApiUrl"]
+            var baseApiUrl = config["BaseApiUrl"]
                 ?? throw new InvalidOperationException("BaseApiUrl is missing from appsettings.json.");
 
-            if (!Uri.TryCreate(_baseApiUrl, UriKind.Absolute, out _))
-                throw new InvalidOperationException($"BaseApiUrl is invalid: {_baseApiUrl}");
-
-            _client = new ApiClient(_baseApiUrl);
-            Log.Information("API tests initialized with base URL {BaseUrl}", _baseApiUrl);
+            _client = new ApiClient(baseApiUrl);
+            Log.Information("API tests initialized with base URL {BaseUrl}", baseApiUrl);
         }
 
         [OneTimeTearDown]
@@ -50,8 +45,8 @@ namespace Locators.Tests
 
             var response = await _client!.ExecuteAsync<List<User>>(request);
 
-            ApiTestHelpers.AssertResponse(response, HttpStatusCode.OK);
-            ApiTestHelpers.AssertResponseUri(response, _baseApiUrl, "users");
+            ApiResponseAssertions.AssertResponse(response, HttpStatusCode.OK);
+            ApiResponseAssertions.AssertNoErrors(response);
 
             Assert.That(response.Data, Is.Not.Null, "Users should deserialize.");
             Assert.That(response.Data, Is.Not.Empty, "Users list should not be empty.");
@@ -91,24 +86,23 @@ namespace Locators.Tests
 
             var response = await _client!.ExecuteAsync(request);
 
-            ApiTestHelpers.AssertResponse(response, HttpStatusCode.OK);
-            ApiTestHelpers.AssertResponseUri(response, _baseApiUrl, "users");
+            ApiResponseAssertions.AssertResponse(response, HttpStatusCode.OK);
+            ApiResponseAssertions.AssertNoErrors(response);
 
-            Assert.That(response.ContentType, Is.Not.Null.And.Not.Empty, "Content-Type should exist.");
+            var contentTypeHeader = response.ContentHeaders?
+                .FirstOrDefault(header => string.Equals(header.Name, "Content-Type", StringComparison.OrdinalIgnoreCase))
+                ?.Value?.ToString();
+            Assert.That(contentTypeHeader, Is.Not.Null.And.Not.Empty, "Content-Type should exist.");
 
-            var contentType = MediaTypeHeaderValue.Parse(response.ContentType!);
+            var contentType = MediaTypeHeaderValue.Parse(contentTypeHeader!);
+            var charset = contentType.CharSet?.Trim('"');
 
             Assert.Multiple(() =>
             {
                 Assert.That(contentType.MediaType, Is.EqualTo("application/json").IgnoreCase,
                     "Media type should be application/json.");
-                // Some servers omit the charset in the Content-Type header. Only assert the
-                // charset when the header actually contains a charset value.
-                if (!string.IsNullOrEmpty(contentType.CharSet))
-                {
-                    Assert.That(contentType.CharSet, Is.EqualTo("utf-8").IgnoreCase,
-                        "Charset should be utf-8 when provided.");
-                }
+                Assert.That(charset, Is.Null.Or.EqualTo("utf-8").IgnoreCase,
+                    "Charset should be omitted or utf-8.");
             });
         }
 
@@ -123,8 +117,8 @@ namespace Locators.Tests
 
             var response = await _client!.ExecuteAsync<List<User>>(request);
 
-            ApiTestHelpers.AssertResponse(response, HttpStatusCode.OK);
-            ApiTestHelpers.AssertResponseUri(response, _baseApiUrl, "users");
+            ApiResponseAssertions.AssertResponse(response, HttpStatusCode.OK);
+            ApiResponseAssertions.AssertNoErrors(response);
 
             var users = response.Data;
             Assert.That(users, Is.Not.Null);
@@ -163,8 +157,8 @@ namespace Locators.Tests
 
             var response = await _client!.ExecuteAsync<CreateUserResponse>(request);
 
-            ApiTestHelpers.AssertResponse(response, HttpStatusCode.Created);
-            ApiTestHelpers.AssertResponseUri(response, _baseApiUrl, "users");
+            ApiResponseAssertions.AssertResponse(response, HttpStatusCode.Created);
+            ApiResponseAssertions.AssertNoErrors(response);
 
             var created = response.Data;
             Assert.That(created, Is.Not.Null, "Response should deserialize to CreateUserResponse.");
@@ -188,8 +182,9 @@ namespace Locators.Tests
 
             var response = await _client!.ExecuteAsync(request);
 
-            ApiTestHelpers.AssertResponse(response, HttpStatusCode.NotFound);
-            ApiTestHelpers.AssertResponseUri(response, _baseApiUrl, "invalidendpoint");
+            ApiResponseAssertions.AssertResponse(response, HttpStatusCode.NotFound);
         }
+
+        private static ApiClient? _client;
     }
 }

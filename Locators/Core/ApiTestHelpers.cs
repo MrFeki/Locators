@@ -1,9 +1,6 @@
 using Microsoft.Extensions.Configuration;
-using NUnit.Framework;
-using RestSharp;
 using Serilog;
 using Serilog.Events;
-using System.Net;
 
 namespace Locators.Core
 {
@@ -47,20 +44,5 @@ namespace Locators.Core
                 .CreateLogger();
         }
 
-        public static void AssertResponse(RestResponse response, HttpStatusCode expectedStatusCode)
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(response.ResponseUri, Is.Not.Null, "Response URI should be available.");
-                Assert.That(response.StatusCode, Is.EqualTo(expectedStatusCode),
-                    $"Expected {(int)expectedStatusCode} {expectedStatusCode}. Body: {response.Content}");
-            });
-        }
-
-        public static void AssertResponseUri(RestResponse response, string baseUrl, string endpoint)
-        {
-            var expectedUri = new Uri(new Uri(baseUrl), endpoint);
-            Assert.That(response.ResponseUri, Is.EqualTo(expectedUri), "Unexpected response URI.");
-        }
     }
 }
